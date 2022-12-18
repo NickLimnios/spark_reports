@@ -14,38 +14,31 @@ object sparkreportsapp {
 
     def main(args:Array[String])= { 
 
-        //set running mode from input arguments
+        //handle input agrs
         var runMode: String = "";
         if (args.length > 0) {
             runMode = args(0)
         }
         Console.println("Start program with runMode=" + runMode)
 
-        //setup spark session
-        Console.println("starting spark....")
-        val spark : SparkSession = SparkSession.builder().master("local[*]").appName("Project2").getOrCreate()
-        import spark.implicits._
-        spark.sparkContext.setLogLevel("OFF")
+        //start spark
+        initiateSparkSession()
         
-        
-
-        //get specific report based on args input
+        //resolve input args
         runMode match {
             case "1"  => getReport_1()
             case "2"  => getReport_2()
             case "3"  => getReport_3()
             case "4"  => getReport_4()
             case "5"  => getReport_5()
-            case "6"  => println("Report 6")
-            case "all"  => println("All Reports")
-            case _  => println("No Reports")
+            case "all"  => getAllReports()
+            case _  => println("Invalid Argument. No reports running.")
             }
 
         //stop spark
-        Console.println("stopping spark....")
-        spark.stop()
-        Console.println("End program.")
+        endSparkSession()
 
+        Console.println("End program")
     }
 
     // get report methods
@@ -86,7 +79,30 @@ object sparkreportsapp {
         getFirstOrderedProductsPercentagePerAisle(aislesDF,productsDF,orderProductsDF)
     }
 
+    def getAllReports()={
+        getReport_1()
+        getReport_2()
+        getReport_3()
+        getReport_4()
+        getReport_5()
+    }
+
     // spark methods
+    def initiateSparkSession()=
+    {
+        Console.println("starting spark....")
+        val spark : SparkSession = SparkSession.builder().master("local[*]").appName("Project2").getOrCreate()
+        import spark.implicits._
+        spark.sparkContext.setLogLevel("OFF")
+    }
+
+    def endSparkSession()=
+    {
+        Console.println("stopping spark....")
+        val spark = SparkSession.builder.getOrCreate()
+        spark.stop()
+    }
+
     def loadDataFrame(schema : StructType, path : String):DataFrame = {
         val spark = SparkSession.builder.getOrCreate()
         val df = spark.read.schema(schema).csv(path)
@@ -112,7 +128,6 @@ object sparkreportsapp {
 
         Console.println("exporting totalProductsPerDepartment report....")
         result.write.mode("overwrite").option("header",true).csv(outputRootPath.concat("totalProductsPerDepartment"))
-
     }
 
     def getTotalOrdersPerWeekdayReport(ordersDF : DataFrame) = {
@@ -123,7 +138,7 @@ object sparkreportsapp {
         Console.println("create orders temp view....")
         ordersDF.createOrReplaceTempView("orders")
 
-         var cmd = "select order_dow as Day_Of_Week, count(*) as Orders_Count from orders group by order_dow order by order_dow asc"
+         var cmd = "select order_dow as Day_Of_Week, count(*) as Orders_Count from orders where order_dow is not null group by order_dow order by order_dow asc"
         Console.println(cmd)
         var result = spark.sql(cmd)
 
@@ -223,7 +238,6 @@ object sparkreportsapp {
         Console.println("exporting firstOrderedProductsPercentagePerAisle report....")
         result.write.mode("overwrite").option("header",true).csv(outputRootPath.concat("firstOrderedProductsPercentagePerAisle"))
     }
-
     
     // define schemas
     def aisles() : StructType = {
