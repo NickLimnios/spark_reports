@@ -14,7 +14,12 @@ object sparkreportsapp {
 
     def main(args:Array[String])= { 
 
-        //Console.println("Starting program with arg[0]=" + args(0))
+        //set running mode from input arguments
+        var runMode: String = "";
+        if (args.length > 0) {
+            runMode = args(0)
+        }
+        Console.println("Start program with runMode=" + runMode)
 
         //setup spark session
         Console.println("starting spark....")
@@ -23,48 +28,72 @@ object sparkreportsapp {
         spark.sparkContext.setLogLevel("OFF")
         
         
-        //load dataframes
-        Console.println("loading dataframes....")
-        val aislesDF = loadDataFrame(aisles(), datasetRootPath.concat("aisles.csv"))
-        val departmentsDF = loadDataFrame(departments(), datasetRootPath.concat("departments.csv"))
-        val productsDF = loadDataFrame(products(), datasetRootPath.concat("products.csv"))
-        val ordersDF = loadDataFrame(orders(), datasetRootPath.concat("orders.csv"))
-        val orderProductsDF = loadDataFrame(orderProducts(), datasetRootPath.concat("order_products.csv"))
 
-        
-        //app logic
-        // if (args(0) == "1")
-        // {
-             getTotalProductsPerDepartmentReport(departmentsDF, productsDF, outputRootPath)
-        // }
-        // else if (args(0) == "2")
-        // {
-             getTotalOrdersPerWeekdayReport(ordersDF, outputRootPath)
-        // }
-        // else if (args(0) == "3")
-        // {
-             getProductsPerDepartmentOrderedOnceFromCustomers(departmentsDF, productsDF, orderProductsDF, outputRootPath)
-        // }
-        // else if (args(0) == "4")
-        // {
-             getMostOrderedProductsPerDepartment(departmentsDF, productsDF, orderProductsDF, outputRootPath)
-        // }
-
+        //get specific report based on args input
+        runMode match {
+            case "1"  => getReport_1()
+            case "2"  => getReport_2()
+            case "3"  => getReport_3()
+            case "4"  => getReport_4()
+            case "5"  => getReport_5()
+            case "6"  => println("Report 6")
+            case "all"  => println("All Reports")
+            case _  => println("No Reports")
+            }
 
         //stop spark
         Console.println("stopping spark....")
-
         spark.stop()
+        Console.println("End program.")
+
     }
 
+    // get report methods
+    def getReport_1()={
+        val departmentsDF = loadDataFrame(departments(), datasetRootPath.concat("departments.csv"))
+        val productsDF = loadDataFrame(products(), datasetRootPath.concat("products.csv"))
+
+        getTotalProductsPerDepartmentReport(departmentsDF, productsDF)
+    }
+
+    def getReport_2()={
+        val ordersDF = loadDataFrame(orders(), datasetRootPath.concat("orders.csv"))
+
+        getTotalOrdersPerWeekdayReport(ordersDF)
+    }
+
+    def getReport_3()={
+        val departmentsDF = loadDataFrame(departments(), datasetRootPath.concat("departments.csv"))
+        val productsDF = loadDataFrame(products(), datasetRootPath.concat("products.csv"))
+        val orderProductsDF = loadDataFrame(orderProducts(), datasetRootPath.concat("order_products.csv"))
+
+        getProductsPerDepartmentOrderedOnceFromCustomers(departmentsDF, productsDF, orderProductsDF)
+    }
+
+    def getReport_4()={
+        val departmentsDF = loadDataFrame(departments(), datasetRootPath.concat("departments.csv"))
+        val productsDF = loadDataFrame(products(), datasetRootPath.concat("products.csv"))
+        val orderProductsDF = loadDataFrame(orderProducts(), datasetRootPath.concat("order_products.csv"))
+
+        getMostOrderedProductsPerDepartment(departmentsDF, productsDF, orderProductsDF)
+    }
+
+    def getReport_5()={
+        val aislesDF = loadDataFrame(aisles(), datasetRootPath.concat("aisles.csv"))
+        val productsDF = loadDataFrame(products(), datasetRootPath.concat("products.csv"))
+        val orderProductsDF = loadDataFrame(orderProducts(), datasetRootPath.concat("order_products.csv"))
+
+        getFirstOrderedProductsPercentagePerAisle(aislesDF,productsDF,orderProductsDF)
+    }
+
+    // spark methods
     def loadDataFrame(schema : StructType, path : String):DataFrame = {
         val spark = SparkSession.builder.getOrCreate()
         val df = spark.read.schema(schema).csv(path)
         return df
     }
 
-    // get report methods
-    def getTotalProductsPerDepartmentReport(departmentsDF : DataFrame, productsDF : DataFrame, outputRootPath : String) =
+    def getTotalProductsPerDepartmentReport(departmentsDF : DataFrame, productsDF : DataFrame) =
     {
         Console.println("getting total products per department report....")
 
@@ -74,9 +103,9 @@ object sparkreportsapp {
         val departmentProductsDF = departmentsDF.join(productsDF, "department_id")
         departmentProductsDF.createOrReplaceTempView("departmentProducts")
 
-        val cmd = "select department as Department_Name, count(*) as Products_Count from departmentProducts group by department order by department"
+        var cmd = "select department as Department_Name, count(*) as Products_Count from departmentProducts group by department order by department"
         Console.println(cmd)
-        val result = spark.sql(cmd)
+        var result = spark.sql(cmd)
 
         Console.println("showing totalProductsPerDepartment report....")
         result.show()
@@ -86,7 +115,7 @@ object sparkreportsapp {
 
     }
 
-    def getTotalOrdersPerWeekdayReport(ordersDF : DataFrame, outputRootPath : String) = {
+    def getTotalOrdersPerWeekdayReport(ordersDF : DataFrame) = {
         Console.println("getting total orders per weekday report....")
 
         val spark = SparkSession.builder.getOrCreate()
@@ -94,9 +123,9 @@ object sparkreportsapp {
         Console.println("create orders temp view....")
         ordersDF.createOrReplaceTempView("orders")
 
-         val cmd = "select order_dow as Day_Of_Week, count(*) as Orders_Count from orders group by order_dow order by order_dow asc"
+         var cmd = "select order_dow as Day_Of_Week, count(*) as Orders_Count from orders group by order_dow order by order_dow asc"
         Console.println(cmd)
-        val result = spark.sql(cmd)
+        var result = spark.sql(cmd)
 
         Console.println("showing totalOrdersPerWeekdayReport report....")
         result.show()
@@ -106,7 +135,7 @@ object sparkreportsapp {
 
     }
 
-    def getProductsPerDepartmentOrderedOnceFromCustomers(departmentsDF : DataFrame, productsDF : DataFrame, orderProductsDF : DataFrame, outputRootPath : String) =
+    def getProductsPerDepartmentOrderedOnceFromCustomers(departmentsDF : DataFrame, productsDF : DataFrame, orderProductsDF : DataFrame) =
     {
         Console.println("getting products per department ordered once from customers report....")
 
@@ -116,13 +145,13 @@ object sparkreportsapp {
         val departmentOrderProductsDF = departmentsDF.join(productsDF, "department_id").join(orderProductsDF, "product_id")
         departmentOrderProductsDF.createOrReplaceTempView("departmentOrderProducts")
 
-        val cmd = "select department as Department_Name, product_id as Product_ID, product_name as Product_Name " +
+        var cmd = "select department as Department_Name, product_id as Product_ID, product_name as Product_Name " +
           " from departmentOrderProducts where reorderd = 0 " +
           " group by department, product_id, product_name " +
           " order by department, product_name "
 
         Console.println(cmd)
-        val result = spark.sql(cmd)
+        var result = spark.sql(cmd)
 
         Console.println("showing productsPerDepartmentOrderedOnceFromCustomers report....")
         result.show()
@@ -131,7 +160,7 @@ object sparkreportsapp {
         result.write.mode("overwrite").option("header",true).csv(outputRootPath.concat("productsPerDepartmentOrderedOnceFromCustomers"))
     }
 
-     def getMostOrderedProductsPerDepartment(departmentsDF : DataFrame, productsDF : DataFrame, orderProductsDF : DataFrame, outputRootPath : String) =
+     def getMostOrderedProductsPerDepartment(departmentsDF : DataFrame, productsDF : DataFrame, orderProductsDF : DataFrame) =
     {
         Console.println("getting most ordered products per department report....")
 
@@ -142,38 +171,60 @@ object sparkreportsapp {
         val departmentOrderProductsDF = departmentsDF.join(productsDF, "department_id").join(orderProductsDF, "product_id")
         departmentOrderProductsDF.createOrReplaceTempView("departmentOrderProducts")
 
-        val cmd1 = " select department, product_name, count(*) as ordered_count " +
+        var cmd = " select department, product_name, count(*) as ordered_count " +
           " from departmentOrderProducts " +
           " where reorderd = 1 " +
           " group by department, product_name " 
 
-        Console.println(cmd1)
+        Console.println(cmd)
 
         Console.println("create departmentOrderProductsCounts temp view....")
 
-        val result1 = spark.sql(cmd1)
-        result1.show();
-        result1.createOrReplaceTempView("departmentOrderProductsCounts")
+        var result = spark.sql(cmd)
+        result.show();
+        result.createOrReplaceTempView("departmentOrderProductsCounts")
 
-        val cmd2 = " select department as Department_Name, product_name as Product_Name, ordered_count as Max_Times_Ordered " +
+        cmd = " select department as Department_Name, product_name as Product_Name, ordered_count as Max_Times_Ordered " +
           " from departmentOrderProductsCounts a " +
           " where ordered_count = ( " +
           " select max(ordered_count) from departmentOrderProductsCounts b where a.department = b.department  " +
           " ) " +
           " order by department " 
 
-        Console.println(cmd2)
-        val result2 = spark.sql(cmd2)
+        Console.println(cmd)
+        result = spark.sql(cmd)
 
         Console.println("showing mostOrderedProductsPerDepartment report....")
-        result2.show()
+        result.show()
 
         Console.println("exporting mostOrderedProductsPerDepartment report....")
-        result2.write.mode("overwrite").option("header",true).csv(outputRootPath.concat("mostOrderedProductsPerDepartment"))
+        result.write.mode("overwrite").option("header",true).csv(outputRootPath.concat("mostOrderedProductsPerDepartment"))
+    }
+
+    def getFirstOrderedProductsPercentagePerAisle(aislesDF: DataFrame, productsDF : DataFrame, orderProductsDF : DataFrame) =
+    {
+        Console.println("getting first ordered products percentage per aisle report....")
+
+        val spark = SparkSession.builder.getOrCreate()
+
+        productsDF.createOrReplaceTempView("products")
+        var cmd = " select aisle_id, count(*) as total_products from products group by aisle_id " 
+        Console.println(cmd)
+        var totalProductsPerAisleDF = spark.sql(cmd)
+        totalProductsPerAisleDF.show();
+
+        val aisleOrderProductsDF = aislesDF.join(productsDF, "aisle_id").join(orderProductsDF, "product_id").join(totalProductsPerAisleDF, "aisle_id" )
+        aisleOrderProductsDF.createOrReplaceTempView("aisleOrderProducts")
+        cmd = " select aisle as Aisle_Name, count(distinct product_id) / max(total_products) * 100 as Percentage from  aisleOrderProducts where add_to_cart_order = 1 group by aisle order by aisle " 
+        Console.println(cmd)
+        var result = spark.sql(cmd)
+        result.show();
+
+        Console.println("exporting firstOrderedProductsPercentagePerAisle report....")
+        result.write.mode("overwrite").option("header",true).csv(outputRootPath.concat("firstOrderedProductsPercentagePerAisle"))
     }
 
     
-
     // define schemas
     def aisles() : StructType = {
         return StructType(Array(
